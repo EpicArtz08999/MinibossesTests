@@ -173,6 +173,11 @@ class Boss extends Creature {
 					}
 				}
 			}
+			if(!$this->isOnGround()) {
+				if($this->isCollidedHorizontally) {
+					$this->motionY = 0.7;
+				}
+			}
 		}
 		$this->updateMovement();
 		parent::onUpdate($currentTick);
