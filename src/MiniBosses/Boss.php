@@ -64,7 +64,7 @@ class Boss extends Creature {
 		$this->plugin = $this->server->getPluginManager()->getPlugin("MiniBosses");
 		parent::initEntity();
 		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_NO_AI, 1);
-		$this->setDataProperty(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $this->scale);
+		$this->setDataProperty(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $this->namedtag["scale"]);
 		if(isset($this->namedtag->maxHealth)) {
 			parent::setMaxHealth($this->namedtag["maxHealth"]);
 			$this->setHealth($this->namedtag["maxHealth"]);
@@ -131,6 +131,7 @@ class Boss extends Creature {
 		$this->namedtag->networkId = new IntTag("networkId", $this->networkId);
 		$this->namedtag->attackRate = new IntTag("attackRate", $this->attackRate);
 		$this->namedtag->speed = new FloatTag("speed", $this->speed);
+		$this->namedtag->scale = new IntTag("scale", $this->scale);
 		$drops2 = [];
 		foreach($this->drops as $drop)
 			$drops2[] = $drop->getId() . ";" . $drop->getDamage() . ";" . $drop->getCount() . ";" . $drop->getCompoundTag();
@@ -141,51 +142,48 @@ class Boss extends Creature {
 	}
 	
 	public function onUpdate($currentTick) {
-		if($this->knockbackTicks > 0) {
-			$this->knockbackTicks--;
-		}
-		if(($player = $this->target) && $player->isAlive()) {
-			if($this->distanceSquared($this->spawnPos) > $this->range) {
+		if($this->knockbackTicks > 0) $this->knockbackTicks--;
+		if(($player = $this->target) && $player->isAlive()){
+			if($this->distanceSquared($this->spawnPos) > $this->range){
 				$this->setPosition($this->spawnPos);
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
-			} else {
-				if(!$this->onGround) {
-					if($this->motionY > -$this->gravity * 4) {
+			}else{
+				if(!$this->onGround){
+					if($this->motionY > -$this->gravity * 4){
 						$this->motionY = -$this->gravity * 4;
-					} else {
+					}else{
 						$this->motionY -= $this->gravity;
 					}
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
-				} elseif($this->knockbackTicks > 0) {
+				}elseif($this->knockbackTicks > 0){
 					
-				} else {
-					$x = $player->x - $this->x;
-					$y = $player->y - $this->y;
-					$z = $player->z - $this->z;
-					if($x ** 2 + $z ** 2 < 0.7) {
+				}else{
+					$x = $player-> x - $this->x;
+					$y = $player-> y - $this->y;
+					$z = $player-> z - $this->z;
+					if($x ** 2 + $z ** 2 < 0.7){
 						$this->motionX = 0;
 						$this->motionZ = 0;
-					} else {
+					}else{
 						$diff = abs($x) + abs($z);
 						$this->motionX = $this->speed * 0.15 * ($x / $diff);
 						$this->motionZ = $this->speed * 0.15 * ($z / $diff);
 					}
-					$this->yaw = rad2deg(atan2(-$x, $z));
+					$this->yaw = rad2deg(atan2(-$x,$z));
 					$this->pitch = rad2deg(atan(-$y));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
-					if($this->distanceSquared($this->target) < $this->range && $this->attackDelay++ > $this->attackRate) {
+					if($this->distanceSquared($this->target) < 1 && $this->attackDelay++ > $this->attackRate){
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
 						$player->attack($ev->getFinalDamage(), $ev);
 					}
 				}
 			}
-			
-			if($this->isOnGround()) {
-				if($this->isCollidedHorizontally && !$this->isJumping) {
-					$this->motionY = 0.7;
-				}
+		}
+		if($this->isOnGround()) {
+			if($this->isCollidedHorizontally && !$this->isJumping) {
+				$this->motionY = 0.7;
 			}
 		}
 		$this->updateMovement();
@@ -194,43 +192,17 @@ class Boss extends Creature {
 	}
 	
 	public function attack($damage, EntityDamageEvent $source) {
-		parent::attack($damage, $source);
-		if($source->isCancelled() || !($source instanceof EntityDamageByEntityEvent)){
-			return;
+		if(!$source->isCancelled() && $source instanceof EntityDamageByEntityEvent) {
+			$dmg = $source->getDamager();
+			if($dmg instanceof Player) {
+				$this->target = $dmg;
+				parent::attack($damage, $source);
+				$this->motionX = ($this->x - $dmg->x) * 0.19;
+				$this->motionY = 0.5;
+				$this->motionZ = ($this->z - $dmg->z) * 0.19;
+				$this->knockbackTicks = 10;
+			}
 		}
-		$this->stayTime = 0;
-		$this->moveTime = 0;
-		$damager = $source->getDamager();
-		$motion = (new Vector3($this->x - $damager->x, $this->y - $damager->y, $this->z - $damager->z))->normalize();
-		$this->motionX = $motion->x * 0.19;
-		$this->motionZ = $motion->z * 0.19;
-		$this->motionY = 0.6;
-	}
-	
-	public function move($dx, $dy, $dz) : bool{
-		Timings::$entityMoveTimer->startTiming();
-		$movX = $dx;
-		$movY = $dy;
-		$movZ = $dz;
-		$list = $this->level->getCollisionCubes($this, $this->level->getTickRate() > 1 ? $this->boundingBox->getOffsetBoundingBox($dx, $dy, $dz) : $this->boundingBox->addCoord($dx, $dy, $dz));
-		foreach($list as $bb){
-			$dx = $bb->calculateXOffset($this->boundingBox, $dx);
-		}
-		$this->boundingBox->offset($dx, 0, 0);
-		foreach($list as $bb){
-			$dz = $bb->calculateZOffset($this->boundingBox, $dz);
-		}
-		$this->boundingBox->offset(0, 0, $dz);
-		foreach($list as $bb){
-			$dy = $bb->calculateYOffset($this->boundingBox, $dy);
-		}
-		$this->boundingBox->offset(0, $dy, 0);
-		$this->setComponents($this->x + $dx, $this->y + $dy, $this->z + $dz);
-		$this->checkChunks();
-		$this->checkGroundState($movX, $movY, $movZ, $dx, $dy, $dz);
-		$this->updateFallState($dy, $this->onGround);
-		Timings::$entityMoveTimer->stopTiming();
-		return true;
 	}
 	
 	public function entityBaseTick($tickDiff = 1, $EnchantL = 0){
