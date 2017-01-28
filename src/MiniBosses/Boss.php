@@ -16,6 +16,7 @@ use pocketmine\network\protocol\AddEntityPacket;
 use pocketmine\network\protocol\AddPlayerPacket;
 use pocketmine\event\Timings;
 use pocketmine\Player;
+use pocketmine\entity\Entity;
 use pocketmine\utils\UUID;
 
 class Boss extends Creature {
@@ -35,6 +36,7 @@ class Boss extends Creature {
 	public $range;
 	public $knockbackTicks = 0;
 	public $plugin;
+	public $isJumping = false;
 	
 	public function __construct($chunk, $nbt) {
 		parent::__construct($chunk, $nbt);
@@ -176,8 +178,9 @@ class Boss extends Creature {
 			}
 			
 			if($this->isOnGround()) {
-				if($this->isCollidedHorizontally) {
+				if($this->isCollidedHorizontally && !$this->isJumping) {
 					$this->motionY = 0.7;
+					$this->isJumping = true;
 				}
 			}
 		}
@@ -224,6 +227,22 @@ class Boss extends Creature {
 		$this->updateFallState($dy, $this->onGround);
 		Timings::$entityMoveTimer->stopTiming();
 		return true;
+	}
+	
+	public function entityBaseTick($tickDiff = 1, $EnchantL = 0){
+		Timings::$timerEntityBaseTick->startTiming();
+		$hasUpdate = Entity::entityBaseTick($tickDiff);
+		if($this->isInsideOfSolid()){
+			$hasUpdate = true;
+			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 1);
+			$this->attack($ev->getFinalDamage(), $ev);
+		}
+		if($this->isJumping) {
+			$hasUpdate = true;
+			$this->isJumping = false;
+		}
+		Timings::$timerEntityBaseTick->startTiming();
+		return $hasUpdate;
 	}
 	
 	public function kill() {

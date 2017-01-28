@@ -196,7 +196,8 @@ class Main extends PluginBase implements Listener {
 		$ent->setMaxHealth($health);
 		$ent->setHealth($health);
 		$ent->setNameTag($name);
-		$ent->setNameTagAlwaysVisible(true);
+		$ent->setNameTagVisible();
+		$ent->setNameTagAlwaysVisible();
 		$ent->spawnToAll();
 		return true;
 	}
