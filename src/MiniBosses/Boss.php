@@ -64,7 +64,7 @@ class Boss extends Creature {
 		$this->plugin = $this->server->getPluginManager()->getPlugin("MiniBosses");
 		parent::initEntity();
 		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_NO_AI, 1);
-		$this->dataProperties[self::DATA_SCALE] = [self::DATA_TYPE_INT, $this->scale];
+		$this->setDataProperty(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $this->scale);
 		if(isset($this->namedtag->maxHealth)) {
 			parent::setMaxHealth($this->namedtag["maxHealth"]);
 			$this->setHealth($this->namedtag["maxHealth"]);
@@ -138,12 +138,6 @@ class Boss extends Creature {
 		$this->namedtag->respawnTime = new IntTag("respawnTime", $this->respawnTime);
 		$this->namedtag->skin = new StringTag("skin", $this->skin);
 		$this->namedtag->heldItem = new StringTag("heldItem", ($this->heldItem instanceof Item ? $this->heldItem->getId() . ";" . $this->heldItem->getDamage() . ";" . $this->heldItem->getCount() . ";" . $this->heldItem->getCompoundTag() : ""));
-	}
-	
-	public function isInsideOfSolid(){
-		$block = $this->level->getBlock($this->temporalVector->setComponents(Math::floorFloat($this->x), Math::floorFloat($this->y + $this->height - 0.18), Math::floorFloat($this->z)));
-		$bb = $block->getBoundingBox();
-		return $bb !== null and $block->isSolid() and !$block->isTransparent() and $bb->intersectsWith($this->getBoundingBox());
 	}
 	
 	public function onUpdate($currentTick) {
