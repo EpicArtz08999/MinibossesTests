@@ -68,7 +68,7 @@ class Main extends PluginBase implements Listener {
 	
 	public function onCommand(CommandSender $sender, Command $cmd, $label, array $args) {
 		if(!isset($args[0])) {
-			$sender->sendMessage("Usage: /minibosses create/spawn/delete/list");
+			$sender->sendMessage(TF::RED . "Usage: /minibosses create/spawn/delete/list");
 		} elseif($args[0] === "create") {
 			if(!($sender instanceof Player)) {
 				$sender->sendMessage("Please run in-game");
@@ -78,11 +78,11 @@ class Main extends PluginBase implements Listener {
 				array_shift($args);
 				$name = implode(' ', $args);
 				if($this->data->get($name, null) === null) {
-					if(($search = array_search($networkid, self::NetworkIds, true)) !== false){
-						if($search === false) {
-							$networkid = self::NetworkIds[strtolower($networkid)];
-						}
-					}else{
+					if(is_numeric($networkid) && in_array($networkid, self::NetworkIds)) {
+						// Do absolutely nothing.
+					} elseif(!is_numeric($networkid) && array_key_exists($networkid, self::NetworkIds)) {
+						$networkid = self::NetworkIds[strtolower($networkid)];
+					} else {
 						$sender->sendMessage(TF::RED . "Unrecognised Network ID or Entity type $networkid");
 						return true;
 					}
@@ -90,7 +90,7 @@ class Main extends PluginBase implements Listener {
 					$this->data->set($name, array("network-id" => $networkid, "x" => $sender->x, "y" => $sender->y, "z" => $sender->z, "level" => $sender->level->getName(), "health" => 20, "range" => 10, "attackDamage" => 1, "attackRate" => 10, "speed" => 1, "drops" => "1;2;3 4;5;6 7;8;9", "respawnTime" => 100, "skin" => ($networkid === 63 ? bin2hex($sender->getSkinData()) : ""), "heldItem" => ($networkid === 63 ? $heldItem->getId() . ";" . $heldItem->getDamage() . ";" . $heldItem->getCount() . ";" : "")));
 					$this->data->save();
 					$this->spawnBoss($name);
-					$sender->sendMessage(TF::GREEN . "Successfully created $name");
+					$sender->sendMessage(TF::GREEN . "Successfully created MiniBoss: $name");
 				} else {
 					$sender->sendMessage(TF::RED . "That MiniBoss already exists");
 				}
