@@ -18,6 +18,8 @@ use pocketmine\event\Timings;
 use pocketmine\Player;
 use pocketmine\entity\Entity;
 use pocketmine\utils\UUID;
+use pocketmine\math\Math;
+use pocketmine\math\Vector3;
 
 class Boss extends Creature {
 	
@@ -37,6 +39,7 @@ class Boss extends Creature {
 	public $knockbackTicks = 0;
 	public $plugin;
 	public $isJumping = false;
+	public $scale;
 	
 	public function __construct($chunk, $nbt) {
 		parent::__construct($chunk, $nbt);
@@ -46,6 +49,7 @@ class Boss extends Creature {
 		$this->attackDamage = $this->namedtag["attackDamage"];
 		$this->attackRate = $this->namedtag["attackRate"];
 		$this->speed = $this->namedtag["speed"];
+		$this->scale = $this->namedtag["scale"];
 		foreach(explode(' ', $this->namedtag["drops"]) as $item) {
 			$item = explode(';', $item);
 			$this->drops[] = Item::get($item[0], isset($item[1]) ? $item[1] : 0, isset($item[2]) ? $item[2] : 1, isset($item[3]) ? $item[3] : "");
@@ -60,6 +64,7 @@ class Boss extends Creature {
 		$this->plugin = $this->server->getPluginManager()->getPlugin("MiniBosses");
 		parent::initEntity();
 		$this->dataProperties[self::DATA_FLAG_NO_AI] = [self::DATA_TYPE_BYTE, 1];
+		$this->dataProperties[self::DATA_SCALE] = [self::DATA_TYPE_INT, $this->scale];
 		if(isset($this->namedtag->maxHealth)) {
 			parent::setMaxHealth($this->namedtag["maxHealth"]);
 			$this->setHealth($this->namedtag["maxHealth"]);
@@ -135,6 +140,12 @@ class Boss extends Creature {
 		$this->namedtag->heldItem = new StringTag("heldItem", ($this->heldItem instanceof Item ? $this->heldItem->getId() . ";" . $this->heldItem->getDamage() . ";" . $this->heldItem->getCount() . ";" . $this->heldItem->getCompoundTag() : ""));
 	}
 	
+	public function isInsideOfSolid(){
+		$block = $this->level->getBlock($this->temporalVector->setComponents(Math::floorFloat($this->x), Math::floorFloat($this->y + $this->height - 0.18), Math::floorFloat($this->z)));
+		$bb = $block->getBoundingBox();
+		return $bb !== null and $block->isSolid() and !$block->isTransparent() and $bb->intersectsWith($this->getBoundingBox());
+	}
+	
 	public function onUpdate($currentTick) {
 		if($this->knockbackTicks > 0) {
 			$this->knockbackTicks--;
@@ -168,7 +179,7 @@ class Boss extends Creature {
 					}
 					$this->yaw = rad2deg(atan2(-$x, $z));
 					$this->pitch = rad2deg(atan(-$y));
-					$this->move($this->motionX, $this->motionY, $this->motionZ);
+					$this->move($this->motionX * $currentTick, $this->motionY * $currentTick, $this->motionZ * $currentTick);
 					if($this->distanceSquared($this->target) < $this->range && $this->attackDelay++ > $this->attackRate) {
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
@@ -180,7 +191,6 @@ class Boss extends Creature {
 			if($this->isOnGround()) {
 				if($this->isCollidedHorizontally && !$this->isJumping) {
 					$this->motionY = 0.7;
-					$this->isJumping = true;
 				}
 			}
 		}
@@ -190,17 +200,17 @@ class Boss extends Creature {
 	}
 	
 	public function attack($damage, EntityDamageEvent $source) {
-		if(!$source->isCancelled() && $source instanceof EntityDamageByEntityEvent) {
-			$dmg = $source->getDamager();
-			if($dmg instanceof Player) {
-				$this->target = $dmg;
-				parent::attack($damage, $source);
-				$this->motionX = ($this->x - $dmg->x) * 0.19;
-				$this->motionY = 0.5;
-				$this->motionZ = ($this->z - $dmg->z) * 0.19;
-				$this->knockbackTicks = 10;
-			}
+		parent::attack($damage, $source);
+		if($source->isCancelled() || !($source instanceof EntityDamageByEntityEvent)){
+			return;
 		}
+		$this->stayTime = 0;
+		$this->moveTime = 0;
+		$damager = $source->getDamager();
+		$motion = (new Vector3($this->x - $damager->x, $this->y - $damager->y, $this->z - $damager->z))->normalize();
+		$this->motionX = $motion->x * 0.19;
+		$this->motionZ = $motion->z * 0.19;
+		$this->motionY = 0.6;
 	}
 	
 	public function move($dx, $dy, $dz) : bool{
@@ -237,16 +247,12 @@ class Boss extends Creature {
 			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 1);
 			$this->attack($ev->getFinalDamage(), $ev);
 		}
-		if($this->isJumping) {
-			$hasUpdate = true;
-			$this->isJumping = false;
-		}
 		Timings::$timerEntityBaseTick->startTiming();
 		return $hasUpdate;
 	}
 	
 	public function kill() {
-		parent::kill();
+		$this->close();
 		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
 	}
 	
