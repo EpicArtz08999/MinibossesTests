@@ -3,8 +3,10 @@
 namespace MiniBosses;
 
 use pocketmine\entity\Creature;
+use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\event\Timings;
 use pocketmine\item\Item;
 use pocketmine\level\particle\MobSpawnParticle;
 use pocketmine\level\Position;
@@ -15,9 +17,7 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\protocol\AddEntityPacket;
 use pocketmine\network\protocol\AddPlayerPacket;
-use pocketmine\event\Timings;
 use pocketmine\Player;
-use pocketmine\entity\Entity;
 use pocketmine\utils\UUID;
 
 class Boss extends Creature {
@@ -141,31 +141,33 @@ class Boss extends Creature {
 	}
 	
 	public function onUpdate($currentTick) {
-		if($this->knockbackTicks > 0) $this->knockbackTicks--;
-		if(($player = $this->target) && $player->isAlive()){
-			if($this->distanceSquared($this->spawnPos) > $this->range){
+		if($this->knockbackTicks > 0) {
+			$this->knockbackTicks--;
+		}
+		if(($player = $this->target) && $player->isAlive()) {
+			if($this->distanceSquared($this->spawnPos) > $this->range) {
 				$this->setPosition($this->spawnPos);
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
-			}else{
-				if(!$this->onGround && !$this->isCollided){
-					if($this->motionY > -$this->gravity * 4){
+			} else {
+				if(!$this->onGround && !$this->isCollided) {
+					if($this->motionY > -$this->gravity * 4) {
 						$this->motionY = -$this->gravity * 4;
-					}else{
+					} else {
 						$this->motionY -= $this->gravity;
 					}
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
-				}elseif($this->knockbackTicks > 0){
+				} elseif($this->knockbackTicks > 0) {
 					
-				}else{
+				} else {
 					$x = $player->x - $this->x;
 					$y = $player->y - $this->y;
 					$z = $player->z - $this->z;
 					$diff = abs($x) + abs($z);
-					if($x ** 2 + $z ** 2 < 0.7){
+					if($x ** 2 + $z ** 2 < 0.7) {
 						$this->motionX = 0;
 						$this->motionZ = 0;
-					}else{
+					} else {
 						$this->motionX = $this->speed * 0.15 * ($x / $diff);
 						$this->motionZ = $this->speed * 0.15 * ($z / $diff);
 					}
@@ -173,7 +175,7 @@ class Boss extends Creature {
 					$this->pitch = $y == 0 ? 0 : rad2deg(-atan2($y, sqrt($x ** 2 + $z ** 2)));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
 					
-					if($this->distanceSquared($this->target) < 1 && $this->attackDelay++ > $this->attackRate){
+					if($this->distanceSquared($this->target) < 1 && $this->attackDelay++ > $this->attackRate) {
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
 						$player->attack($ev->getFinalDamage(), $ev);
@@ -186,6 +188,7 @@ class Boss extends Creature {
 				$this->motionY = 0.7;
 			}
 		}
+		parent::onUpdate($currentTick);
 		$this->updateMovement();
 		return !$this->closed;
 	}
@@ -204,10 +207,10 @@ class Boss extends Creature {
 		}
 	}
 	
-	public function entityBaseTick($tickDiff = 1, $EnchantL = 0){
+	public function entityBaseTick($tickDiff = 1, $EnchantL = 0) {
 		Timings::$timerEntityBaseTick->startTiming();
 		$hasUpdate = Entity::entityBaseTick($tickDiff);
-		if($this->isInsideOfSolid()){
+		if($this->isInsideOfSolid()) {
 			$hasUpdate = true;
 			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 1);
 			$this->attack($ev->getFinalDamage(), $ev);
