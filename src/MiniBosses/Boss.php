@@ -19,8 +19,6 @@ use pocketmine\event\Timings;
 use pocketmine\Player;
 use pocketmine\entity\Entity;
 use pocketmine\utils\UUID;
-use pocketmine\math\Math;
-use pocketmine\math\Vector3;
 
 class Boss extends Creature {
 	
@@ -160,20 +158,21 @@ class Boss extends Creature {
 				}elseif($this->knockbackTicks > 0){
 					
 				}else{
-					$x = $player-> x - $this->x;
-					$y = $player-> y - $this->y;
-					$z = $player-> z - $this->z;
+					$x = $player->x - $this->x;
+					$y = $player->y - $this->y;
+					$z = $player->z - $this->z;
+					$diff = abs($x) + abs($z);
 					if($x ** 2 + $z ** 2 < 0.7){
 						$this->motionX = 0;
 						$this->motionZ = 0;
 					}else{
-						$diff = abs($x) + abs($z);
 						$this->motionX = $this->speed * 0.15 * ($x / $diff);
 						$this->motionZ = $this->speed * 0.15 * ($z / $diff);
 					}
-					$this->yaw = rad2deg(atan2(-$x,$z));
-					$this->pitch = rad2deg(atan(-$y));
+					$this->yaw = -atan2($x / $diff, $z / $diff) * 180 / M_PI;
+					$this->pitch = $y == 0 ? 0 : rad2deg(-atan2($y, sqrt($x ** 2 + $z ** 2)));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
+					
 					if($this->distanceSquared($this->target) < 1 && $this->attackDelay++ > $this->attackRate){
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
@@ -188,7 +187,6 @@ class Boss extends Creature {
 			}
 		}
 		$this->updateMovement();
-		parent::onUpdate($currentTick);
 		return !$this->closed;
 	}
 	
@@ -219,9 +217,10 @@ class Boss extends Creature {
 	}
 	
 	public function kill() {
-		parent::kill();
 		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
 		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
+		$this->close();
+		parent::kill();
 	}
 	
 	public function getDrops() {
