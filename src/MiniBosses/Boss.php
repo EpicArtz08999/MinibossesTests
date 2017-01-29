@@ -63,7 +63,7 @@ class Boss extends Creature {
 	public function initEntity() {
 		$this->plugin = $this->server->getPluginManager()->getPlugin("MiniBosses");
 		parent::initEntity();
-		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_NO_AI, 1);
+		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_NO_AI, true);
 		$this->setDataProperty(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $this->namedtag["scale"]);
 		if(isset($this->namedtag->maxHealth)) {
 			parent::setMaxHealth($this->namedtag["maxHealth"]);
