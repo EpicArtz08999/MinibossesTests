@@ -6,6 +6,7 @@ use pocketmine\entity\Creature;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\item\Item;
+use pocketmine\level\particle\MobSpawnParticle;
 use pocketmine\level\Position;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
@@ -63,7 +64,7 @@ class Boss extends Creature {
 	public function initEntity() {
 		$this->plugin = $this->server->getPluginManager()->getPlugin("MiniBosses");
 		parent::initEntity();
-		$this->setDataFlag(Entity::DATA_FLAGS, Entity::DATA_FLAG_NO_AI, true);
+		$this->dataProperties[Entity::DATA_FLAG_NO_AI] = [Entity::DATA_TYPE_BYTE, 1];
 		$this->setDataProperty(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $this->namedtag["scale"]);
 		if(isset($this->namedtag->maxHealth)) {
 			parent::setMaxHealth($this->namedtag["maxHealth"]);
@@ -149,7 +150,7 @@ class Boss extends Creature {
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
 			}else{
-				if(!$this->onGround){
+				if(!$this->onGround && !$this->isCollided){
 					if($this->motionY > -$this->gravity * 4){
 						$this->motionY = -$this->gravity * 4;
 					}else{
@@ -218,7 +219,8 @@ class Boss extends Creature {
 	}
 	
 	public function kill() {
-		$this->close();
+		parent::kill();
+		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
 		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
 	}
 	
