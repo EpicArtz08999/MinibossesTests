@@ -212,7 +212,7 @@ class Boss extends Creature {
 			}
 		}
 		$this->checkBlockCollision();
-		parent::onUpdate($currentTick);
+		$this->entityBaseTick($currentTick);
 		$this->updateMovement();
 		return !$this->closed;
 	}
