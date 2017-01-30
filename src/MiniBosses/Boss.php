@@ -10,6 +10,7 @@ use pocketmine\event\Timings;
 use pocketmine\item\Item;
 use pocketmine\level\particle\MobSpawnParticle;
 use pocketmine\level\Position;
+use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\IntTag;
@@ -17,6 +18,7 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\protocol\AddEntityPacket;
 use pocketmine\network\protocol\AddPlayerPacket;
+use pocketmine\network\protocol\ExplodePacket;
 use pocketmine\Player;
 use pocketmine\utils\UUID;
 
@@ -40,6 +42,11 @@ class Boss extends Creature {
 	public $isJumping = false;
 	public $scale;
 	
+	public $strikeLightning;
+	public $lightningTime;
+	public $lightningFire;
+	public $time = 0;
+	
 	public function __construct($chunk, $nbt) {
 		parent::__construct($chunk, $nbt);
 		$this->networkId = $this->namedtag["networkId"];
@@ -49,6 +56,10 @@ class Boss extends Creature {
 		$this->attackRate = $this->namedtag["attackRate"];
 		$this->speed = $this->namedtag["speed"];
 		$this->scale = $this->namedtag["scale"];
+		
+		$this->strikeLightning = $this->namedtag["strikeLightning"];
+		$this->lightningTime = $this->namedtag["lightningTime"];
+		$this->lightningFire = $this->namedtag["lightningFire"];
 		foreach(explode(' ', $this->namedtag["drops"]) as $item) {
 			$item = explode(';', $item);
 			$this->drops[] = Item::get($item[0], isset($item[1]) ? $item[1] : 0, isset($item[2]) ? $item[2] : 1, isset($item[3]) ? $item[3] : "");
@@ -131,6 +142,10 @@ class Boss extends Creature {
 		$this->namedtag->attackRate = new IntTag("attackRate", $this->attackRate);
 		$this->namedtag->speed = new FloatTag("speed", $this->speed);
 		$this->namedtag->scale = new IntTag("scale", $this->scale);
+		
+		$this->namedtag->strikeLightning = new ByteTag("strikeLightning", $this->strikeLightning);
+		$this->namedtag->lightningTime = new IntTag("lightningTime", $this->lightningTime);
+		$this->namedtag->lightningFire = new ByteTag("lightningFire", $this->lightningFire);
 		$drops2 = [];
 		foreach($this->drops as $drop)
 			$drops2[] = $drop->getId() . ";" . $drop->getDamage() . ";" . $drop->getCount() . ";" . $drop->getCompoundTag();
@@ -138,9 +153,12 @@ class Boss extends Creature {
 		$this->namedtag->respawnTime = new IntTag("respawnTime", $this->respawnTime);
 		$this->namedtag->skin = new StringTag("skin", $this->skin);
 		$this->namedtag->heldItem = new StringTag("heldItem", ($this->heldItem instanceof Item ? $this->heldItem->getId() . ";" . $this->heldItem->getDamage() . ";" . $this->heldItem->getCount() . ";" . $this->heldItem->getCompoundTag() : ""));
+		
+		
 	}
 	
 	public function onUpdate($currentTick) {
+		$this->time++;
 		if($this->knockbackTicks > 0) {
 			$this->knockbackTicks--;
 		}
@@ -150,6 +168,11 @@ class Boss extends Creature {
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
 			} else {
+				if($this->strikeLightning === true && $this->time % $this->lightningTime * 20 === 0) {
+					$this->strikeLightning($this->target);
+					$this->addExplosion($this->target);
+				}
+				
 				if(!$this->onGround && !$this->isCollided) {
 					if($this->motionY > -$this->gravity * 4) {
 						$this->motionY = -$this->gravity * 4;
@@ -216,17 +239,49 @@ class Boss extends Creature {
 			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 1);
 			$this->attack($ev->getFinalDamage(), $ev);
 		}
-		Timings::$timerEntityBaseTick->startTiming();
+		Timings::$timerEntityBaseTick->stopTiming();
 		return $hasUpdate;
 	}
 	
 	public function kill() {
 		parent::kill();
-		$this->plugin->respawn($this->getNameTag(),$this->respawnTime);
+		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
 		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
 	}
 	
 	public function getDrops() {
 		return $this->drops;
+	}
+	
+	private function strikeLightning(Player $p) {
+		$pk = new AddEntityPacket();
+		$pk->type = 93;
+		$pk->eid = Entity::$entityCount++;
+		$pk->metadata = [];
+		$pk->x = $p->x;
+		$pk->y = $p->y;
+		$pk->z = $p->z;
+		$pk->speedX = 0;
+		$pk->speedY = 0;
+		$pk->speedZ = 0;
+		foreach($this->plugin->getServer()->getOnlinePlayers() as $player) {
+			$player->dataPacket($pk);
+		}
+	}
+	
+	private function addExplosion(Player $p) {
+		$pk = new ExplodePacket();
+		$pk->radius = 7;
+		$pk->records = [];
+		$pk->x = $p->x;
+		$pk->y = $p->y;
+		$pk->z = $p->z;
+		foreach($this->plugin->getServer()->getOnlinePlayers() as $player) {
+			$player->dataPacket($pk);
+			
+			if($player->distanceSquared(new Vector3($pk->x, $pk->y, $pk->z)) <= 4) {
+				$player->attack(5, new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_MAGIC, 5));
+			}
+		}
 	}
 }
