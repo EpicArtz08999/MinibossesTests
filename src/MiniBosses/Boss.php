@@ -164,7 +164,7 @@ class Boss extends Creature {
 			$this->knockbackTicks--;
 		}
 		if(($player = $this->target) && $player->isAlive()) {
-			if($this->distanceSquared($this->spawnPos) > $this->range && $this->distanceSquared($this->target) > $this->target) {
+			if($this->distanceSquared($this->spawnPos) > $this->range || $this->distanceSquared($this->target) > $this->target) {
 				$this->setPosition($this->spawnPos);
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
