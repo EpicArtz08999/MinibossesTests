@@ -145,7 +145,7 @@ class Boss extends Creature {
 			$this->knockbackTicks--;
 		}
 		if(($player = $this->target) && $player->isAlive()) {
-			if($this->distanceSquared($this->spawnPos) > $this->range) {
+			if($this->distanceSquared($this->spawnPos) > $this->range && $this->distanceSquared($this->target) > $this->target) {
 				$this->setPosition($this->spawnPos);
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
@@ -175,7 +175,7 @@ class Boss extends Creature {
 					$this->pitch = $y == 0 ? 0 : rad2deg(-atan2($y, sqrt($x ** 2 + $z ** 2)));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
 					
-					if($this->distanceSquared($this->target) < $this->range && $this->attackDelay++ > $this->attackRate) {
+					if($this->distanceSquared($this->target) < $this->scale && $this->attackDelay++ > $this->attackRate) {
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
 						$player->attack($ev->getFinalDamage(), $ev);
@@ -189,7 +189,7 @@ class Boss extends Creature {
 			}
 		}
 		$this->checkBlockCollision();
-		parent::entityBaseTick();
+		parent::onUpdate($currentTick);
 		$this->updateMovement();
 		return !$this->closed;
 	}
