@@ -140,23 +140,6 @@ class Boss extends Creature {
 		$this->namedtag->heldItem = new StringTag("heldItem", ($this->heldItem instanceof Item ? $this->heldItem->getId() . ";" . $this->heldItem->getDamage() . ";" . $this->heldItem->getCount() . ";" . $this->heldItem->getCompoundTag() : ""));
 	}
 	
-	public function updateMovement() {
-		if(
-			$this->lastX !== $this->x
-			|| $this->lastY !== $this->y
-			|| $this->lastZ !== $this->z
-			|| $this->lastYaw !== $this->yaw
-			|| $this->lastPitch !== $this->pitch
-		) {
-			$this->lastX = $this->x;
-			$this->lastY = $this->y;
-			$this->lastZ = $this->z;
-			$this->lastYaw = $this->yaw;
-			$this->lastPitch = $this->pitch;
-		}
-		$this->level->addEntityMovement($this->chunk->getX(), $this->chunk->getZ(), $this->id, $this->x, $this->y, $this->z, $this->yaw, $this->pitch);
-	}
-	
 	public function onUpdate($currentTick) {
 		if($this->knockbackTicks > 0) {
 			$this->knockbackTicks--;
@@ -206,7 +189,7 @@ class Boss extends Creature {
 			}
 		}
 		$this->updateMovement();
-		parent::onUpdate($currentTick);
+		$this->entityBaseTick();
 		return !$this->closed;
 	}
 	
@@ -237,10 +220,10 @@ class Boss extends Creature {
 	}
 	
 	public function kill() {
-		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
-		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
 		$this->close();
 		parent::kill();
+		$this->plugin->respawn($this->getNameTag(),$this->respawnTime);
+		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
 	}
 	
 	public function getDrops() {
