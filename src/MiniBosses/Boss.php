@@ -45,7 +45,7 @@ class Boss extends Creature {
 	
 	public $strikeLightning;
 	public $lightningTime;
-	public $lightningFire;
+	public $lightningDamage;
 	public $time = 0;
 	
 	public function __construct($chunk, $nbt) {
@@ -60,7 +60,7 @@ class Boss extends Creature {
 		
 		$this->strikeLightning = $this->namedtag["strikeLightning"];
 		$this->lightningTime = $this->namedtag["lightningTime"];
-		$this->lightningFire = $this->namedtag["lightningFire"];
+		$this->lightningDamage = $this->namedtag["lightningDamage"];
 		foreach(explode(' ', $this->namedtag["drops"]) as $item) {
 			$item = explode(';', $item);
 			$this->drops[] = Item::get($item[0], isset($item[1]) ? $item[1] : 0, isset($item[2]) ? $item[2] : 1, isset($item[3]) ? $item[3] : "");
@@ -146,7 +146,7 @@ class Boss extends Creature {
 		
 		$this->namedtag->strikeLightning = new ByteTag("strikeLightning", $this->strikeLightning);
 		$this->namedtag->lightningTime = new IntTag("lightningTime", $this->lightningTime);
-		$this->namedtag->lightningFire = new ByteTag("lightningFire", $this->lightningFire);
+		$this->namedtag->lightningDamage = new IntTag("lightningDamage", $this->lightningDamage);
 		$drops2 = [];
 		foreach($this->drops as $drop)
 			$drops2[] = $drop->getId() . ";" . $drop->getDamage() . ";" . $drop->getCount() . ";" . $drop->getCompoundTag();
@@ -169,7 +169,7 @@ class Boss extends Creature {
 				$this->setHealth($this->getMaxHealth());
 				$this->target = null;
 			} else {
-				if($this->strikeLightning === true && $this->time % $this->lightningTime * 20 === 0) {
+				if($this->strikeLightning === true && $this->time % $this->lightningTime * 20 === 0 && $this->distance($this->target) <= $this->scale * 4) {
 					$this->strikeLightning($this->target);
 					$this->addExplosion($this->target);
 				}
@@ -199,7 +199,7 @@ class Boss extends Creature {
 					$this->pitch = $y == 0 ? 0 : rad2deg(-atan2($y, sqrt($x ** 2 + $z ** 2)));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
 					
-					if($this->distanceSquared($this->target) < $this->scale && $this->attackDelay++ > $this->attackRate) {
+					if($this->distanceSquared($this->target) < ($this->scale + 1) && $this->attackDelay++ > $this->attackRate) {
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
 						$player->attack($ev->getFinalDamage(), $ev);
@@ -241,13 +241,17 @@ class Boss extends Creature {
 			$this->attack($ev->getFinalDamage(), $ev);
 		}
 		Timings::$timerEntityBaseTick->stopTiming();
+		
+		if(!$this->isAlive()) {
+			$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
+			$hasUpdate = true;
+		}
 		return $hasUpdate;
 	}
 	
 	public function kill() {
 		parent::kill();
 		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
-		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
 	}
 	
 	public function getDrops() {

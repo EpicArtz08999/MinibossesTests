@@ -88,7 +88,7 @@ class Main extends PluginBase implements Listener {
 						return true;
 					}
 					$heldItem = $sender->getInventory()->getItemInHand();
-					$this->data->set($name, array("network-id" => $networkid, "x" => $sender->x, "y" => $sender->y, "z" => $sender->z, "level" => $sender->level->getName(), "health" => 20, "range" => 10, "attackDamage" => 1, "attackRate" => 10, "speed" => 1, "drops" => "1;2;3 4;5;6 7;8;9", "respawnTime" => 100, "skin" => ($networkid === 63 ? bin2hex($sender->getSkinData()) : ""), "heldItem" => ($networkid === 63 ? $heldItem->getId() . ";" . $heldItem->getDamage() . ";" . $heldItem->getCount() . ";" : ""), "scale" => 1, "strikeLightning" => false, "lightningTime" => 10, "lightningFire" => false));
+					$this->data->set($name, array("network-id" => $networkid, "x" => $sender->x, "y" => $sender->y, "z" => $sender->z, "level" => $sender->level->getName(), "health" => 20, "range" => 10, "attackDamage" => 1, "attackRate" => 10, "speed" => 1, "drops" => "1;2;3 4;5;6 7;8;9", "respawnTime" => 100, "skin" => ($networkid === 63 ? bin2hex($sender->getSkinData()) : ""), "heldItem" => ($networkid === 63 ? $heldItem->getId() . ";" . $heldItem->getDamage() . ";" . $heldItem->getCount() . ";" : ""), "scale" => 1, "strikeLightning" => false, "lightningTime" => 10, "lightningDamage" => 4));
 					$this->data->save();
 					$this->spawnBoss($name);
 					$sender->sendMessage(TF::GREEN . "Successfully created MiniBoss: $name");
@@ -163,7 +163,7 @@ class Main extends PluginBase implements Listener {
 		$scale = $data["scale"];
 		$strikeLightning = $data["strikeLightning"];
 		$lightningTime = $data["lightningTime"];
-		$lightningFire = $data["lightningFire"];
+		$lightningDamage = $data["lightningDamage"];
 		$respawnTime = $data["respawnTime"];
 		$skin = ($networkId === 63 ? $data["skin"] : "");
 		$heldItem = ($networkId === 63 ? $data["heldItem"] : "");
@@ -199,7 +199,7 @@ class Main extends PluginBase implements Listener {
 			"scale" => new IntTag("scale", $scale),
 			"strikeLightning" => new ByteTag("strikeLightning", $strikeLightning),
 			"lightningTime" => new IntTag("lightningTime", $lightningTime),
-			"lightningFire" => new ByteTag("lightningFire", $lightningFire)
+			"lightningDamage" => new IntTag("lightningDamage", $lightningDamage)
 		]);
 		$ent = Entity::createEntity("Boss", $pos->level->getChunk($pos->x >> 4, $pos->z >> 4, true), $nbt);
 		$ent->setMaxHealth($health);
