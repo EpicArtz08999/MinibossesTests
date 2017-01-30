@@ -188,8 +188,8 @@ class Boss extends Creature {
 				$this->motionY = 0.7;
 			}
 		}
+		$this->checkBlockCollision();
 		$this->updateMovement();
-		$this->entityBaseTick();
 		return !$this->closed;
 	}
 	
@@ -220,7 +220,6 @@ class Boss extends Creature {
 	}
 	
 	public function kill() {
-		$this->close();
 		parent::kill();
 		$this->plugin->respawn($this->getNameTag(),$this->respawnTime);
 		$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
