@@ -189,7 +189,6 @@ class Boss extends Creature {
 			}
 		}
 		parent::onUpdate($currentTick);
-		$this->updateMovement();
 		return !$this->closed;
 	}
 	
