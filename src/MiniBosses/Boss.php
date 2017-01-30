@@ -140,6 +140,23 @@ class Boss extends Creature {
 		$this->namedtag->heldItem = new StringTag("heldItem", ($this->heldItem instanceof Item ? $this->heldItem->getId() . ";" . $this->heldItem->getDamage() . ";" . $this->heldItem->getCount() . ";" . $this->heldItem->getCompoundTag() : ""));
 	}
 	
+	public function updateMovement() {
+		if(
+			$this->lastX !== $this->x
+			|| $this->lastY !== $this->y
+			|| $this->lastZ !== $this->z
+			|| $this->lastYaw !== $this->yaw
+			|| $this->lastPitch !== $this->pitch
+		) {
+			$this->lastX = $this->x;
+			$this->lastY = $this->y;
+			$this->lastZ = $this->z;
+			$this->lastYaw = $this->yaw;
+			$this->lastPitch = $this->pitch;
+		}
+		$this->level->addEntityMovement($this->chunk->getX(), $this->chunk->getZ(), $this->id, $this->x, $this->y, $this->z, $this->yaw, $this->pitch);
+	}
+	
 	public function onUpdate($currentTick) {
 		if($this->knockbackTicks > 0) {
 			$this->knockbackTicks--;
@@ -175,7 +192,7 @@ class Boss extends Creature {
 					$this->pitch = $y == 0 ? 0 : rad2deg(-atan2($y, sqrt($x ** 2 + $z ** 2)));
 					$this->move($this->motionX, $this->motionY, $this->motionZ);
 					
-					if($this->distanceSquared($this->target) < 1 && $this->attackDelay++ > $this->attackRate) {
+					if($this->distanceSquared($this->target) < $this->range && $this->attackDelay++ > $this->attackRate) {
 						$this->attackDelay = 0;
 						$ev = new EntityDamageByEntityEvent($this, $this->target, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $this->attackDamage);
 						$player->attack($ev->getFinalDamage(), $ev);
@@ -188,6 +205,7 @@ class Boss extends Creature {
 				$this->motionY = 0.7;
 			}
 		}
+		$this->updateMovement();
 		parent::onUpdate($currentTick);
 		return !$this->closed;
 	}
