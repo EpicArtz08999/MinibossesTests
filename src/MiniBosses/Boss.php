@@ -232,23 +232,6 @@ class Boss extends Creature {
 		}
 	}
 	
-	public function entityBaseTick($tickDiff = 1, $EnchantL = 0) {
-		Timings::$timerEntityBaseTick->startTiming();
-		$hasUpdate = Entity::entityBaseTick($tickDiff);
-		if($this->isInsideOfSolid()) {
-			$hasUpdate = true;
-			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 1);
-			$this->attack($ev->getFinalDamage(), $ev);
-		}
-		Timings::$timerEntityBaseTick->stopTiming();
-		
-		if(!$this->isAlive()) {
-			$this->level->addParticle(new MobSpawnParticle($this), $this->scale * 2);
-			$hasUpdate = true;
-		}
-		return $hasUpdate;
-	}
-	
 	public function kill() {
 		parent::kill();
 		$this->plugin->respawn($this->getNameTag(), $this->respawnTime);
